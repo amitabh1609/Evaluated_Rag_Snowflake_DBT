@@ -1,0 +1,68 @@
+.PHONY: up down crawl index eval ui test lint fmt help
+
+PYTHON := python
+UV := uv
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+up:
+	docker compose up -d qdrant postgres langfuse
+	@echo "Qdrant  → http://localhost:6333"
+	@echo "Langfuse → http://localhost:3000"
+
+down:
+	docker compose down
+
+ui:
+	docker compose up -d ui
+	@echo "Streamlit → http://localhost:8501"
+
+# ── Pipeline ─────────────────────────────────────────────────────────────────
+
+crawl:
+	$(PYTHON) -m erag.crawl.snowflake
+	$(PYTHON) -m erag.crawl.dbt_docs
+	$(PYTHON) -m erag.crawl.dbt_discourse
+
+index:
+	$(PYTHON) -m erag.index.build_index
+
+eval:
+	$(PYTHON) -m erag.eval.ragas_runner
+
+ablation:
+	$(PYTHON) -m erag.eval.ablation
+
+# ── CI smoke (used by GitHub Actions) ────────────────────────────────────────
+
+eval-smoke:
+	$(PYTHON) -m erag.eval.ragas_runner --smoke
+
+# ── Dev tooling ───────────────────────────────────────────────────────────────
+
+install:
+	$(UV) sync --all-extras
+
+test:
+	$(UV) run pytest tests/ -v --tb=short
+
+lint:
+	$(UV) run ruff check src/ tests/
+
+fmt:
+	$(UV) run ruff format src/ tests/
+
+help:
+	@echo "Targets:"
+	@echo "  up          Start Qdrant + Langfuse + Postgres"
+	@echo "  down        Stop all containers"
+	@echo "  ui          Start Streamlit UI container"
+	@echo "  crawl       Crawl all three sources"
+	@echo "  index       Chunk, embed, and upsert into Qdrant"
+	@echo "  eval        Run full RAGAS evaluation on benchmark.yaml"
+	@echo "  ablation    Run 3-config ablation and write docs/ablation_results.md"
+	@echo "  eval-smoke  10-question CI smoke subset"
+	@echo "  install     Install Python deps via uv"
+	@echo "  test        Run pytest"
+	@echo "  lint        Ruff lint"
+	@echo "  fmt         Ruff format"

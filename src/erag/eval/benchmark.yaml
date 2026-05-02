@@ -1,0 +1,84 @@
+# Hand-curated benchmark — 50 questions across 4 difficulty tiers.
+# This is a 5-question placeholder to establish the schema.
+# The full 50 questions are hand-curated in Phase 4 after reading the corpus.
+#
+# Schema per entry:
+#   id:               unique identifier, format <tier_prefix>-<NNN>
+#   tier:             factual | conceptual | architectural | adversarial
+#   question:         the question exactly as a user would type it
+#   gold_answer:      1–3 sentence gold answer written in your own words
+#   must_cite_doc_ids: list of doc_ids that the answer MUST cite to be correct
+#   notes:            any traps, subtleties, or grading notes
+
+- id: f-001
+  tier: factual
+  question: "What is the default auto-suspend time for a Snowflake virtual warehouse?"
+  gold_answer: >
+    When created via the Snowflake UI the default is 600 seconds (10 minutes).
+    When created via SQL CREATE WAREHOUSE there is no default — AUTO_SUSPEND must
+    be set explicitly or the warehouse will never auto-suspend.
+  must_cite_doc_ids:
+    - sf_warehouse_create
+    - sf_warehouse_management
+  notes: "Trap: UI default vs SQL default differ. Many answers only cite one."
+
+- id: f-002
+  tier: factual
+  question: "What dbt command materializes all models in a project?"
+  gold_answer: >
+    `dbt run` executes and materializes all models. To limit scope use
+    `dbt run --select <model_name>` or `dbt run --models <selector>`.
+  must_cite_doc_ids:
+    - dbt_run_command
+  notes: "Straightforward; tests that the system retrieves dbt-core CLI docs."
+
+- id: c-001
+  tier: conceptual
+  question: "What is the difference between a Snowflake Stream and a Dynamic Table, and when would you choose each?"
+  gold_answer: >
+    A Stream tracks DML changes (inserts, updates, deletes) on a source table as
+    a change-data-capture offset; it does not store data, only the delta since last
+    consumption. A Dynamic Table materializes a declarative query result and refreshes
+    automatically on a lag schedule; it is closer to a continuously-updated materialized
+    view. Use Streams when you need fine-grained CDC (e.g., feeding a Kafka topic or
+    running conditional logic per row); use Dynamic Tables when you want a refreshed
+    aggregate or join without writing pipeline orchestration code.
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_dynamic_tables_overview
+  notes: "Requires synthesizing two separate doc sections."
+
+- id: a-001
+  tier: architectural
+  question: "How should I organize a dbt project that spans 4 source databases and serves 3 separate business teams?"
+  gold_answer: >
+    The dbt best-practices guide recommends a layered model structure (staging →
+    intermediate → marts) and separating staging models by source system under
+    models/staging/<source>/. For multi-team projects, marts should be organized
+    by business domain (models/marts/finance/, models/marts/ops/) so each team owns
+    its output layer. Cross-team shared logic lives in models/intermediate/. Use
+    dbt groups and model-level access controls (introduced in dbt-core 1.5) to enforce
+    ownership boundaries without forking the project.
+  must_cite_doc_ids:
+    - dbt_best_practices_structure
+    - dbt_groups_access
+  notes: "Open-ended; partial credit if it cites structure guide but misses groups/access."
+
+- id: adv-001
+  tier: adversarial
+  question: "Does Snowflake support full ACID transactions across multi-statement sessions?"
+  gold_answer: >
+    Snowflake supports ACID transactions within a session: BEGIN / COMMIT / ROLLBACK
+    work correctly and multi-statement transactions are atomic and isolated. However,
+    Snowflake uses snapshot isolation (not serializable isolation by default), so
+    two concurrent transactions reading the same rows can both proceed without blocking
+    — a write in transaction B is not visible to transaction A until B commits.
+    The correct answer is: yes, Snowflake is ACID-compliant, but the isolation level
+    is snapshot isolation, not strict serializability, which matters for certain
+    anomaly-sensitive workloads.
+  must_cite_doc_ids:
+    - sf_transactions
+    - sf_isolation_levels
+  notes: >
+    Trap: a naive 'yes ACID' answer misses the isolation-level nuance.
+    A naive 'no not ACID' answer is simply wrong. The system must return a nuanced answer.

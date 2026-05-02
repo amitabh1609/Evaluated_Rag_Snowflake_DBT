@@ -1,0 +1,51 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.uv/
+
+# Data (large, not committed; use DVC or document manually)
+data/raw/
+data/processed/
+# benchmark samples committed; raw data not
+data/benchmark/*.jsonl
+
+# Models cached locally
+.cache/
+models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Qdrant local storage (spun up via docker-compose)
+qdrant_storage/
+
+# Langfuse postgres data
+postgres_data/
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb

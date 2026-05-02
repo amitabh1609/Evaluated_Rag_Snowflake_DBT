@@ -1,0 +1,112 @@
+name: Eval Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval-smoke:
+    name: RAGAS smoke eval (faithfulness ≥ 0.80)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.14.0
+        ports:
+          - 6333:6333
+          - 6334:6334
+        options: >-
+          --health-cmd "curl -sf http://localhost:6333/healthz"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv==0.7.2
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Build smoke index (10 docs)
+        env:
+          QDRANT_URL: http://localhost:6333
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          uv run python -m erag.index.build_index --smoke
+
+      - name: Run RAGAS smoke eval
+        id: ragas
+        env:
+          QDRANT_URL: http://localhost:6333
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+        run: |
+          uv run python -m erag.eval.ragas_runner --smoke --output-json /tmp/smoke_results.json
+
+      - name: Parse faithfulness and gate
+        run: |
+          python - <<'EOF'
+          import json, sys
+
+          with open("/tmp/smoke_results.json") as f:
+              results = json.load(f)
+
+          faithfulness = results.get("faithfulness", 0.0)
+          threshold = 0.80
+
+          print(f"Faithfulness score: {faithfulness:.4f}")
+          print(f"Threshold:          {threshold:.4f}")
+
+          if faithfulness < threshold:
+              print(f"FAIL: faithfulness {faithfulness:.4f} < {threshold:.4f}")
+              sys.exit(1)
+          else:
+              print(f"PASS: faithfulness {faithfulness:.4f} >= {threshold:.4f}")
+          EOF
+
+      - name: Comment results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('/tmp/smoke_results.json', 'utf8'));
+            const f = results.faithfulness?.toFixed(4) ?? 'N/A';
+            const ar = results.answer_relevancy?.toFixed(4) ?? 'N/A';
+            const cp = results.context_precision?.toFixed(4) ?? 'N/A';
+            const body = [
+              '## Eval Gate Results',
+              '',
+              '| Metric | Score | Threshold |',
+              '|--------|-------|-----------|',
+              `| Faithfulness | ${f} | ≥ 0.80 |`,
+              `| Answer Relevancy | ${ar} | — |`,
+              `| Context Precision | ${cp} | — |`,
+              '',
+              '_Smoke subset: 10 questions from benchmark.yaml_',
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });

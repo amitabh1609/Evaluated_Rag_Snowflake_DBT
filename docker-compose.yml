@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.14.0
+    container_name: erag-qdrant
+    ports:
+      - "6333:6333"   # HTTP / REST
+      - "6334:6334"   # gRPC
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: erag-postgres
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+      POSTGRES_DB: langfuse
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  langfuse:
+    image: langfuse/langfuse:3
+    container_name: erag-langfuse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://langfuse:langfuse@postgres:5432/langfuse
+      NEXTAUTH_SECRET: changeme-in-production
+      NEXTAUTH_URL: http://localhost:3000
+      SALT: changeme-in-production
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: src/erag/ui/Dockerfile
+    container_name: erag-ui
+    depends_on:
+      - qdrant
+      - langfuse
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  qdrant_storage:
+  postgres_data:

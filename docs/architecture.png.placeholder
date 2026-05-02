@@ -1,0 +1,13 @@
+Architecture diagram to be created in Phase 2.
+
+Boxes and arrows (left to right):
+  [Crawl] → [Chunk] → [Embed] → [Qdrant (dense + sparse)]
+                                        ↓
+  [User Query] → [Rewrite (LLM)] → [Vector Search]  →  [RRF Merge] → [BGE Reranker] → [Generator (Claude)] → [Answer + Citations]
+                                → [BM25 Search]    ↗
+                                        ↓
+                                  [Langfuse Trace]
+
+Tools: Excalidraw (https://excalidraw.com) or draw.io
+Export as docs/architecture.png (1200×600px min).
+Delete this placeholder file once the real PNG is committed.

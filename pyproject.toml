@@ -1,0 +1,72 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "erag"
+version = "0.1.0"
+description = "Evaluated RAG System for Snowflake & dbt Documentation"
+requires-python = ">=3.11"
+dependencies = [
+    # Crawling
+    "httpx==0.28.1",
+    "trafilatura==2.0.0",
+    # Chunking
+    "langchain-text-splitters==0.3.8",
+    "semantic-text-splitter==0.22.0",
+    "tiktoken==0.9.0",
+    # Embeddings & reranking
+    "sentence-transformers==3.4.1",
+    "torch==2.7.0",
+    # Vector DB
+    "qdrant-client==1.14.2",
+    # BM25
+    "rank-bm25==0.2.2",
+    # Generation
+    "anthropic==0.52.0",
+    "openai==1.79.0",
+    # Evaluation
+    "ragas==0.2.15",
+    "datasets==3.6.0",
+    # Observability
+    "langfuse==2.60.4",
+    # UI
+    "streamlit==1.45.1",
+    "plotly==6.1.1",
+    # Utilities
+    "pydantic==2.11.4",
+    "pydantic-settings==2.9.1",
+    "python-dotenv==1.1.0",
+    "tenacity==9.1.2",
+    "tqdm==4.67.1",
+    "rich==14.0.0",
+    "typer==0.15.3",
+    "pyyaml==6.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "pytest-asyncio==0.26.0",
+    "pytest-cov==6.1.0",
+    "ruff==0.11.9",
+    "mypy==1.15.0",
+]
+
+[project.scripts]
+erag = "erag.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/erag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

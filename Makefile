@@ -1,4 +1,4 @@
-.PHONY: up down crawl index eval ui test lint fmt help
+.PHONY: up down crawl crawl-snowflake crawl-dbt crawl-discourse index eval ablation eval-smoke ui test lint fmt help
 
 PYTHON := python
 UV := uv
@@ -20,23 +20,32 @@ ui:
 # ── Pipeline ─────────────────────────────────────────────────────────────────
 
 crawl:
-	$(PYTHON) -m erag.crawl.snowflake
-	$(PYTHON) -m erag.crawl.dbt_docs
-	$(PYTHON) -m erag.crawl.dbt_discourse
+	$(UV) run python -m erag.crawl.snowflake
+	$(UV) run python -m erag.crawl.dbt_docs
+	$(UV) run python -m erag.crawl.dbt_discourse
+
+crawl-snowflake:
+	$(UV) run python -m erag.crawl.snowflake $(ARGS)
+
+crawl-dbt:
+	$(UV) run python -m erag.crawl.dbt_docs $(ARGS)
+
+crawl-discourse:
+	$(UV) run python -m erag.crawl.dbt_discourse $(ARGS)
 
 index:
-	$(PYTHON) -m erag.index.build_index
+	$(UV) run python -m erag.index.build_index
 
 eval:
-	$(PYTHON) -m erag.eval.ragas_runner
+	$(UV) run python -m erag.eval.ragas_runner
 
 ablation:
-	$(PYTHON) -m erag.eval.ablation
+	$(UV) run python -m erag.eval.ablation
 
 # ── CI smoke (used by GitHub Actions) ────────────────────────────────────────
 
 eval-smoke:
-	$(PYTHON) -m erag.eval.ragas_runner --smoke
+	$(UV) run python -m erag.eval.ragas_runner --smoke
 
 # ── Dev tooling ───────────────────────────────────────────────────────────────
 

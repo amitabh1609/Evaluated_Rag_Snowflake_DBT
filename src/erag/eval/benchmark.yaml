@@ -1,84 +1,788 @@
 # Hand-curated benchmark — 50 questions across 4 difficulty tiers.
-# This is a 5-question placeholder to establish the schema.
-# The full 50 questions are hand-curated in Phase 4 after reading the corpus.
+# Written after reading the Snowflake and dbt documentation corpus.
+# Do NOT generate questions with an LLM — they miss retrieval blind spots.
 #
-# Schema per entry:
-#   id:               unique identifier, format <tier_prefix>-<NNN>
-#   tier:             factual | conceptual | architectural | adversarial
-#   question:         the question exactly as a user would type it
-#   gold_answer:      1–3 sentence gold answer written in your own words
-#   must_cite_doc_ids: list of doc_ids that the answer MUST cite to be correct
-#   notes:            any traps, subtleties, or grading notes
+# Tiers:
+#   factual (f-)     — single-doc lookup, exact answer exists in docs
+#   conceptual (c-)  — requires synthesising 2-3 docs
+#   architectural (a-) — open design question, docs give principles not answers
+#   adversarial (adv-) — trap question where obvious answer is wrong or incomplete
+
+# ── Factual (15) ──────────────────────────────────────────────────────────────
 
 - id: f-001
   tier: factual
-  question: "What is the default auto-suspend time for a Snowflake virtual warehouse?"
+  question: "What is the default AUTO_SUSPEND setting for a Snowflake virtual warehouse created via the web UI?"
   gold_answer: >
-    When created via the Snowflake UI the default is 600 seconds (10 minutes).
-    When created via SQL CREATE WAREHOUSE there is no default — AUTO_SUSPEND must
-    be set explicitly or the warehouse will never auto-suspend.
+    The default AUTO_SUSPEND setting when creating a warehouse through the Snowflake web UI
+    is 600 seconds (10 minutes). When creating a warehouse via SQL (CREATE WAREHOUSE), there
+    is no built-in default — AUTO_SUSPEND must be specified explicitly or the warehouse will
+    never auto-suspend.
   must_cite_doc_ids:
-    - sf_warehouse_create
     - sf_warehouse_management
-  notes: "Trap: UI default vs SQL default differ. Many answers only cite one."
+    - sf_warehouse_create
+  notes: "Trap: UI default vs SQL default differ. Many answers only cite one path."
 
 - id: f-002
   tier: factual
-  question: "What dbt command materializes all models in a project?"
+  question: "What is the maximum number of columns that can be part of a Snowflake clustering key?"
   gold_answer: >
-    `dbt run` executes and materializes all models. To limit scope use
-    `dbt run --select <model_name>` or `dbt run --models <selector>`.
+    A Snowflake clustering key can contain a maximum of three columns or expressions.
+    Snowflake recommends keeping clustering keys as narrow as possible — typically one or
+    two columns — because each additional column increases maintenance overhead during
+    automatic reclustering.
   must_cite_doc_ids:
-    - dbt_run_command
-  notes: "Straightforward; tests that the system retrieves dbt-core CLI docs."
+    - sf_clustering_tables
+  notes: "Specific numeric fact; tests whether the system retrieves clustering reference page."
+
+- id: f-003
+  tier: factual
+  question: "What are the four built-in materialisation types in dbt?"
+  gold_answer: >
+    The four built-in dbt materialisation types are: table (recreated from scratch on each run),
+    view (created as a database view), incremental (appends or merges only new rows), and
+    ephemeral (a CTE inlined into dependent models, never written to the database).
+  must_cite_doc_ids:
+    - dbt_materializations
+  notes: "Ephemeral is often forgotten. Tests completeness of retrieval."
+
+- id: f-004
+  tier: factual
+  question: "How many days does Snowflake Time Travel retain data for transient tables by default?"
+  gold_answer: >
+    Transient tables have a default Time Travel retention period of 0 days, with a maximum
+    of 1 day. This is intentional — transient tables are designed for temporary data that
+    does not require the full storage cost or compliance guarantees of permanent tables.
+  must_cite_doc_ids:
+    - sf_tables_temp_transient
+  notes: "Trap: permanent table default is 1 day; transient default is 0. Common confusion."
+
+- id: f-005
+  tier: factual
+  question: "What SQL command do you use to create a stream on a Snowflake table?"
+  gold_answer: >
+    You use CREATE STREAM to create a stream on a Snowflake table. The basic syntax is:
+    CREATE STREAM <stream_name> ON TABLE <table_name>. Optional parameters include
+    SHOW_INITIAL_ROWS (to include existing rows on first consumption) and APPEND_ONLY
+    (to track inserts only, not updates or deletes).
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_sql_create_stream
+  notes: "Tests SQL reference retrieval alongside conceptual docs."
+
+- id: f-006
+  tier: factual
+  question: "What is the default schema name automatically created when you create a new Snowflake database?"
+  gold_answer: >
+    When you create a new Snowflake database, Snowflake automatically creates two schemas:
+    PUBLIC (the default schema) and INFORMATION_SCHEMA. The INFORMATION_SCHEMA schema contains
+    views and table functions that expose metadata about all database objects.
+  must_cite_doc_ids:
+    - sf_database_create
+  notes: "INFORMATION_SCHEMA is often forgotten — tests completeness."
+
+- id: f-007
+  tier: factual
+  question: "What does the dbt command 'dbt source freshness' do?"
+  gold_answer: >
+    dbt source freshness checks whether source tables have been updated within a defined
+    freshness threshold configured in the sources.yml file. It queries the loaded_at_field
+    column on each source and compares it to the configured warn_after and error_after
+    thresholds, returning a warning or error status per source.
+  must_cite_doc_ids:
+    - dbt_source_freshness
+  notes: "Tests dbt CLI docs retrieval; freshness is a distinct command from dbt test."
+
+- id: f-008
+  tier: factual
+  question: "What is the minimum Snowflake warehouse size that supports multi-cluster warehouses?"
+  gold_answer: >
+    Multi-cluster warehouses require at least an X-Large (XL) warehouse size. Warehouses
+    smaller than X-Large — X-Small, Small, Medium, and Large — cannot be configured as
+    multi-cluster warehouses.
+  must_cite_doc_ids:
+    - sf_warehouses_multicluster
+  notes: "Specific constraint often confused with scaling policies."
+
+- id: f-009
+  tier: factual
+  question: "What dbt command regenerates the manifest.json and catalog.json files for the documentation site?"
+  gold_answer: >
+    dbt docs generate compiles the project and produces the manifest.json and catalog.json
+    artifacts. Running dbt docs serve then starts a local web server to browse the generated
+    documentation. The manifest.json is also produced by dbt compile and dbt run, but
+    catalog.json requires dbt docs generate specifically.
+  must_cite_doc_ids:
+    - dbt_docs_generate
+  notes: "Distinguishes docs generate from docs serve; tests CLI reference coverage."
+
+- id: f-010
+  tier: factual
+  question: "How long does Snowflake retain data in Fail-Safe after the Time Travel period expires?"
+  gold_answer: >
+    Snowflake retains data in Fail-Safe for 7 days after the Time Travel period expires
+    for permanent tables. Fail-Safe is not user-accessible — only Snowflake Support can
+    recover data from Fail-Safe. Transient and temporary tables have no Fail-Safe period.
+  must_cite_doc_ids:
+    - sf_data_failsafe
+  notes: "Trap: Fail-Safe vs Time Travel distinction. Fail-Safe is Snowflake-side only."
+
+- id: f-011
+  tier: factual
+  question: "What is the default severity level for a dbt test failure?"
+  gold_answer: >
+    The default severity level for a dbt test is 'error', which causes dbt test to exit
+    with a non-zero code when the test fails. You can override this to 'warn' either at the
+    project level in dbt_project.yml or at the individual test level using the 'severity'
+    config key, which downgrades failures to warnings without stopping the run.
+  must_cite_doc_ids:
+    - dbt_test_severity
+  notes: "Tests dbt test configuration docs; severity is commonly misconfigured."
+
+- id: f-012
+  tier: factual
+  question: "What does the AUTO_RESUME parameter do in a Snowflake warehouse definition?"
+  gold_answer: >
+    AUTO_RESUME automatically starts a suspended warehouse when a SQL query is submitted
+    to it. It is enabled (TRUE) by default for all newly created warehouses. When set to
+    FALSE, a suspended warehouse must be manually resumed with ALTER WAREHOUSE ... RESUME
+    before it can process queries.
+  must_cite_doc_ids:
+    - sf_warehouse_create
+  notes: "Pair with f-001; tests that AUTO_RESUME and AUTO_SUSPEND are correctly distinguished."
+
+- id: f-013
+  tier: factual
+  question: "What are the three types of Snowflake internal stages?"
+  gold_answer: >
+    Snowflake has three types of internal stages: user stages (one per user, referenced as
+    @~), table stages (one per table, referenced as @%<table_name>), and named stages
+    (explicitly created objects referenced by name). Named stages are the most flexible
+    and are the recommended approach for data pipelines because they can be shared across
+    users and have configurable file format options.
+  must_cite_doc_ids:
+    - sf_stages_internal
+  notes: "All three types must be named; tests completeness of retrieval."
+
+- id: f-014
+  tier: factual
+  question: "In dbt, what is the purpose of the 'unique_key' config on an incremental model?"
+  gold_answer: >
+    The unique_key config on a dbt incremental model tells dbt which column (or combination
+    of columns) uniquely identifies a row. When a unique_key is specified, dbt performs an
+    UPSERT (merge) — rows with matching keys in the target table are updated, and new rows
+    are inserted. Without unique_key, dbt only appends new rows with no deduplication.
+  must_cite_doc_ids:
+    - dbt_incremental_models
+  notes: "Tests incremental model reference docs; unique_key semantics commonly misunderstood."
+
+- id: f-015
+  tier: factual
+  question: "What Snowflake function returns the current role being used in a session?"
+  gold_answer: >
+    CURRENT_ROLE() returns the name of the active (primary) role in the current session.
+    If you need to see all roles currently active including secondary roles, use
+    CURRENT_SECONDARY_ROLES(). The role can be changed for the session with USE ROLE.
+  must_cite_doc_ids:
+    - sf_system_functions
+  notes: "Tests SQL reference for session context functions; CURRENT_SECONDARY_ROLES often unknown."
+
+# ── Conceptual (15) ───────────────────────────────────────────────────────────
 
 - id: c-001
   tier: conceptual
   question: "What is the difference between a Snowflake Stream and a Dynamic Table, and when would you choose each?"
   gold_answer: >
-    A Stream tracks DML changes (inserts, updates, deletes) on a source table as
-    a change-data-capture offset; it does not store data, only the delta since last
-    consumption. A Dynamic Table materializes a declarative query result and refreshes
-    automatically on a lag schedule; it is closer to a continuously-updated materialized
-    view. Use Streams when you need fine-grained CDC (e.g., feeding a Kafka topic or
-    running conditional logic per row); use Dynamic Tables when you want a refreshed
-    aggregate or join without writing pipeline orchestration code.
+    A Stream is a CDC (change data capture) object that records the delta of DML changes
+    (inserts, updates, deletes) against a source table since the stream was last consumed.
+    It does not store data — only the offset and change metadata. A Dynamic Table materialises
+    the result of a declarative SELECT query and refreshes automatically based on a target lag.
+    Use Streams when you need row-level change detection (e.g. feeding a Kafka topic, running
+    conditional logic per changed row, or building a slowly changing dimension). Use Dynamic
+    Tables when you want a continuously refreshed aggregate, join, or transformation without
+    writing orchestration code — it behaves like a maintained materialised view.
   must_cite_doc_ids:
     - sf_streams_intro
     - sf_dynamic_tables_overview
-  notes: "Requires synthesizing two separate doc sections."
+  notes: "Core Snowflake concept pair; requires synthesising two doc sections."
+
+- id: c-002
+  tier: conceptual
+  question: "How does Snowflake's micro-partition architecture differ from traditional database partitioning, and what are the implications for query performance?"
+  gold_answer: >
+    Snowflake automatically divides all table data into immutable micro-partitions of
+    50–500 MB (compressed), each storing column statistics (min, max, null count) in its
+    metadata. Unlike traditional partitioning, there is no user-defined partition key —
+    Snowflake uses natural insertion order and optionally a clustering key. The query
+    optimizer uses the metadata to prune micro-partitions that cannot contain relevant rows
+    without scanning them, a process called partition pruning. Because micro-partitions are
+    columnar, queries that read only a few columns scan much less data than row-oriented stores.
+    The implication: clustering keys help only when queries filter on the clustering column;
+    for ad-hoc analytical queries, the automatic pruning often delivers good performance
+    without any explicit partitioning strategy.
+  must_cite_doc_ids:
+    - sf_micropartitions
+    - sf_clustering_tables
+  notes: "Requires reading both micro-partition and clustering docs to answer fully."
+
+- id: c-003
+  tier: conceptual
+  question: "What is the difference between dbt ref() and dbt source(), and when should each be used?"
+  gold_answer: >
+    ref() is used to reference another dbt model within the same project (or an installed
+    package). It builds the DAG dependency graph, enables cross-database/schema resolution,
+    and is always the right function for model-to-model references. source() is used to
+    reference raw source tables that exist outside dbt — typically the landing zone tables
+    loaded by an EL tool. Using source() rather than a hardcoded table name allows dbt to
+    track freshness, apply source tests, and resolve the schema automatically per environment.
+    The rule: use source() for the first model that touches raw data; use ref() for every
+    downstream model.
+  must_cite_doc_ids:
+    - dbt_ref
+    - dbt_sources
+  notes: "Fundamental dbt concept; answer must distinguish DAG vs source tracking roles."
+
+- id: c-004
+  tier: conceptual
+  question: "What is Snowflake zero-copy cloning and what are its key limitations?"
+  gold_answer: >
+    Zero-copy cloning creates an instant copy of a table, schema, or database by pointing
+    to the same underlying micro-partitions as the source object — no data is physically
+    copied. Storage is only consumed when the clone diverges from the source through DML
+    changes. Key limitations: (1) clones of external tables are not supported; (2) temporary
+    and transient objects can only be cloned as transient, not permanent; (3) a clone does
+    not inherit the source's resource monitors, data sharing configurations, or network
+    policies; (4) cloning does not propagate grants from the source object to the clone.
+  must_cite_doc_ids:
+    - sf_cloning
+  notes: "Limitations are in the docs but easy to miss; tests depth of retrieval."
+
+- id: c-005
+  tier: conceptual
+  question: "How does the Snowflake query result cache work, and how does it differ from the warehouse data cache?"
+  gold_answer: >
+    The query result cache stores the exact result set of a successfully executed query for
+    24 hours at the service layer. A subsequent identical query (same SQL, same user context,
+    unchanged underlying data) returns from the result cache instantly with zero warehouse
+    credits consumed. The warehouse data cache (also called the local disk cache) caches
+    micro-partition data on the SSD storage of warehouse worker nodes, persisting as long
+    as the warehouse is running. The warehouse cache speeds up queries that re-read the same
+    micro-partitions but still consumes warehouse credits. Key difference: result cache
+    requires identical SQL and unchanged data; warehouse cache helps any query re-reading
+    the same raw blocks.
+  must_cite_doc_ids:
+    - sf_query_result_cache
+    - sf_warehouse_cache
+  notes: "Two distinct caching layers often conflated; requires synthesising both docs."
+
+- id: c-006
+  tier: conceptual
+  question: "What is the difference between dbt generic tests and singular tests?"
+  gold_answer: >
+    Generic tests are reusable test definitions parameterised by column and table name —
+    the four built-in ones are unique, not_null, accepted_values, and relationships. They
+    are defined in YAML (.yml) files and applied across multiple models. Singular tests are
+    standalone SQL files in the tests/ directory; each file is a query that should return
+    zero rows if the test passes. Singular tests are used for complex business-rule assertions
+    that cannot be expressed as a generic test, for example verifying that revenue never
+    decreases month-over-month. Generic tests are reusable; singular tests are bespoke.
+  must_cite_doc_ids:
+    - dbt_tests
+  notes: "Requires reading both the test types section; 'singular' terminology is dbt-specific."
+
+- id: c-007
+  tier: conceptual
+  question: "What is the difference between a Snowflake transient table and a temporary table?"
+  gold_answer: >
+    Both transient and temporary tables have no Fail-Safe period and a maximum Time Travel
+    retention of 1 day (default 0 for transient, 0 for temporary). The key difference is
+    scope and lifetime: temporary tables exist only for the duration of the session that
+    created them and are automatically dropped when the session ends; they are invisible to
+    other sessions. Transient tables persist across sessions like permanent tables but
+    without the storage overhead of Fail-Safe. Use temporary tables for session-scoped
+    intermediate results; use transient tables for pipeline staging data that you don't need
+    to protect with Fail-Safe.
+  must_cite_doc_ids:
+    - sf_tables_temp_transient
+  notes: "Session scope is the critical differentiator; often confused because both lack Fail-Safe."
+
+- id: c-008
+  tier: conceptual
+  question: "How does dbt's incremental strategy 'merge' differ from 'delete+insert', and when would you choose each?"
+  gold_answer: >
+    The merge strategy performs a SQL MERGE (UPSERT) — matched rows are updated in place
+    and new rows are inserted in a single atomic operation. It is supported on Snowflake,
+    BigQuery, and Spark and requires a unique_key. The delete+insert strategy deletes
+    matching rows first, then inserts the new batch; this avoids MERGE limitations on some
+    warehouses and can be more performant when entire partitions are being replaced. Choose
+    merge when you need true UPSERT semantics with minimal table churn. Choose delete+insert
+    when working with date-partitioned tables where full partition replacement is cleaner,
+    or when the target warehouse has MERGE performance issues.
+  must_cite_doc_ids:
+    - dbt_incremental_models
+    - dbt_incremental_strategies
+  notes: "Strategy comparison requires reading both strategy docs sections."
+
+- id: c-009
+  tier: conceptual
+  question: "What is a Snowflake multi-cluster warehouse and when does it automatically scale out?"
+  gold_answer: >
+    A multi-cluster warehouse consists of multiple clusters of compute that can run in
+    parallel. Auto-scaling mode automatically starts additional clusters when the current
+    clusters are fully occupied (queuing occurs) and shuts them down when load drops.
+    Maximised mode keeps all clusters running regardless of load. Auto-scaling is appropriate
+    for variable, unpredictable concurrency (e.g. BI dashboards with usage spikes); Maximised
+    mode is appropriate for consistent high-concurrency workloads where startup latency is
+    unacceptable. Multi-cluster warehouses require Enterprise edition or higher and X-Large
+    minimum warehouse size.
+  must_cite_doc_ids:
+    - sf_warehouses_multicluster
+  notes: "Auto-scaling vs Maximised modes are both covered in the same doc; tests completeness."
+
+- id: c-010
+  tier: conceptual
+  question: "What is the difference between a dbt package and a dbt project, and how are packages installed?"
+  gold_answer: >
+    A dbt project is the top-level unit of work — a directory with dbt_project.yml, models,
+    tests, and macros. A dbt package is a reusable dbt project installed as a dependency.
+    Packages are declared in packages.yml (or dependencies.yml in dbt 1.6+) and installed
+    with dbt deps. Packages can provide shared macros, generic tests, and pre-built models.
+    The most widely used package is dbt-utils, which provides utility macros. A project
+    consumes packages; a package is just a project published for reuse.
+  must_cite_doc_ids:
+    - dbt_packages
+    - dbt_deps
+  notes: "dependencies.yml vs packages.yml versioning distinction is important."
+
+- id: c-011
+  tier: conceptual
+  question: "How does Snowflake APPEND_ONLY stream differ from a standard stream, and what is the performance implication?"
+  gold_answer: >
+    A standard stream tracks all DML — inserts, updates, and deletes — by maintaining before
+    and after images of changed rows. An APPEND_ONLY stream tracks only INSERT operations,
+    making it more efficient for workloads that only add rows (e.g. event logs, append-only
+    fact tables). The performance implication is significant: APPEND_ONLY streams consume
+    less metadata storage and are faster to query because they do not need to track row-level
+    change types. However, if UPDATE or DELETE operations occur on the source table and the
+    stream is APPEND_ONLY, those changes are not captured.
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_streams_types
+  notes: "APPEND_ONLY semantics often overlooked; tests depth of stream docs retrieval."
+
+- id: c-012
+  tier: conceptual
+  question: "What are dbt model contracts and why would you use them in a multi-team dbt project?"
+  gold_answer: >
+    Model contracts (introduced in dbt-core 1.5) enforce that a model produces a specific
+    set of columns with defined data types, and optionally that specific constraints hold
+    (e.g. not_null, unique). The contract is declared in the model's YAML config with
+    'contract: enforced: true'. Contracts are valuable in multi-team projects because they
+    create a stable API between teams — a consuming team can depend on the column schema of
+    an upstream model and be alerted immediately (at compile time) if the schema changes,
+    rather than discovering breakage at query time.
+  must_cite_doc_ids:
+    - dbt_contracts
+    - dbt_model_access
+  notes: "dbt 1.5 feature; requires reading the contracts and access docs together."
+
+- id: c-013
+  tier: conceptual
+  question: "How does Snowflake handle semi-structured data, and what are the performance trade-offs of using VARIANT columns?"
+  gold_answer: >
+    Snowflake stores semi-structured data (JSON, Avro, Parquet, XML) natively in VARIANT
+    columns, automatically detecting and extracting frequently accessed keys into virtual
+    columns for optimised storage and querying. Querying VARIANT uses dot notation
+    (col:key::type) or the FLATTEN table function for array expansion. Performance trade-offs:
+    Snowflake can prune micro-partitions on virtual columns extracted from VARIANT, but
+    querying deeply nested paths or undiscovered keys falls back to full column scan. For
+    high-cardinality, frequently queried fields, materialising them as typed columns in a
+    dedicated model is more performant than leaving everything in VARIANT.
+  must_cite_doc_ids:
+    - sf_semistructured_data
+    - sf_variant
+  notes: "Virtual column extraction is a Snowflake-specific optimization often unknown."
+
+- id: c-014
+  tier: conceptual
+  question: "What is the purpose of dbt snapshots, and how do they differ from a manually maintained SCD Type 2 table?"
+  gold_answer: >
+    dbt snapshots implement SCD Type 2 (slowly changing dimension) logic declaratively.
+    On each dbt snapshot run, dbt compares the current source data against the latest
+    snapshot using a configured strategy (timestamp or check), closes records that changed
+    by setting dbt_valid_to, and inserts new records for the updated values. Compared to
+    a manually maintained SCD2 table, snapshots eliminate bespoke SQL for tracking valid
+    dates, enforce a consistent audit trail (dbt_updated_at, dbt_scd_id), and are
+    idempotent. The trade-off is that snapshot runs must be scheduled regularly — unlike
+    Dynamic Tables, they don't auto-refresh.
+  must_cite_doc_ids:
+    - dbt_snapshots
+  notes: "Comparison to Dynamic Tables is a common interview question; requires reading both."
+
+- id: c-015
+  tier: conceptual
+  question: "What is Snowflake data sharing and how does it differ from data replication?"
+  gold_answer: >
+    Snowflake data sharing allows a provider account to grant another Snowflake account
+    (consumer) read access to specific database objects (tables, views, UDFs) without
+    copying or moving data. The consumer queries the provider's actual storage in real
+    time. This is fundamentally different from replication, which physically copies data
+    to the consumer account, incurring storage and transfer costs and introducing
+    synchronisation lag. Data sharing has zero storage cost for the consumer and always
+    reflects current data. The trade-off: the consumer depends on the provider's availability
+    and cannot write to shared objects.
+  must_cite_doc_ids:
+    - sf_data_sharing
+  notes: "Zero-copy, real-time access is the key differentiator from replication."
+
+# ── Architectural (10) ────────────────────────────────────────────────────────
 
 - id: a-001
   tier: architectural
-  question: "How should I organize a dbt project that spans 4 source databases and serves 3 separate business teams?"
+  question: "How should you organise a dbt project that spans 4 source databases and serves 3 separate business teams with different ownership boundaries?"
   gold_answer: >
-    The dbt best-practices guide recommends a layered model structure (staging →
-    intermediate → marts) and separating staging models by source system under
-    models/staging/<source>/. For multi-team projects, marts should be organized
-    by business domain (models/marts/finance/, models/marts/ops/) so each team owns
-    its output layer. Cross-team shared logic lives in models/intermediate/. Use
-    dbt groups and model-level access controls (introduced in dbt-core 1.5) to enforce
-    ownership boundaries without forking the project.
+    The dbt best-practices guide recommends a layered structure: models/staging/<source>/
+    for one-to-one source abstractions, models/intermediate/ for cross-source joins and
+    business logic, and models/marts/<domain>/ for team-facing output models. With 4 source
+    databases, each staging sub-directory maps to one source system. For 3 teams, each owns
+    a mart sub-directory. Use dbt groups (groups.yml) with access: private or access: protected
+    to enforce ownership boundaries — a model with access: private can only be ref()-ed by
+    models in the same group. Combine this with model contracts on mart models so consuming
+    teams get schema stability guarantees.
   must_cite_doc_ids:
     - dbt_best_practices_structure
     - dbt_groups_access
-  notes: "Open-ended; partial credit if it cites structure guide but misses groups/access."
+    - dbt_contracts
+  notes: "Groups + access controls is the key differentiator from a naive folder structure."
+
+- id: a-002
+  tier: architectural
+  question: "When should you choose Snowflake Iceberg tables over standard Snowflake-managed tables?"
+  gold_answer: >
+    Iceberg tables are appropriate when: (1) you need open format interoperability — other
+    engines (Spark, Trino, Flink) must read or write the same data without going through
+    Snowflake; (2) you want to avoid Snowflake storage vendor lock-in by keeping data in
+    your own S3/GCS/Azure bucket in Parquet format; (3) regulatory requirements mandate
+    open, auditable storage. Standard Snowflake-managed tables are preferable when
+    performance and simplicity matter most — Snowflake's FDN format with automatic
+    clustering, micro-partition pruning, and search optimisation outperforms Iceberg for
+    pure Snowflake workloads. The operational cost of managing an Iceberg catalog
+    (e.g. AWS Glue) is non-trivial.
+  must_cite_doc_ids:
+    - sf_tables_iceberg
+    - sf_micropartitions
+  notes: "Interoperability vs performance trade-off is the architectural crux."
+
+- id: a-003
+  tier: architectural
+  question: "What is the recommended approach for handling slowly changing dimensions (SCD Type 2) in a dbt project on Snowflake?"
+  gold_answer: >
+    The recommended dbt-native approach is dbt snapshots with strategy: timestamp or
+    strategy: check. Snapshots produce a table with dbt_valid_from, dbt_valid_to, and
+    dbt_scd_id columns managed automatically. For Snowflake specifically, the snapshot
+    materialisation uses MERGE to handle concurrency correctly. An alternative for simpler
+    Type 1 (overwrite) SCDs is a standard table model with unique_key and incremental
+    strategy: merge. For Type 2 with very high update volume, some teams implement custom
+    MERGE SQL in a macro to avoid snapshot scan overhead. The snapshot approach is the
+    correct default unless performance profiling shows it's a bottleneck.
+  must_cite_doc_ids:
+    - dbt_snapshots
+    - dbt_incremental_models
+  notes: "Open-ended; good answer mentions both dbt snapshots and incremental model options."
+
+- id: a-004
+  tier: architectural
+  question: "How would you design a Snowflake + dbt architecture for a near-real-time CDC pipeline ingesting from 10 operational databases?"
+  gold_answer: >
+    A typical pattern: (1) Use a CDC tool (Fivetran, Debezium, or Snowflake's own CDC via
+    Streams) to land raw change events into Snowflake staging tables. (2) Create Snowflake
+    Streams on each staging table to capture ongoing changes. (3) Use Snowflake Tasks
+    (scheduled or triggered) to consume streams and merge changes into clean history tables.
+    (4) Build dbt models on top of the history tables for transformations — dbt runs
+    periodically (every 5–30 minutes via Airflow or dbt Cloud) to refresh marts. The key
+    architecture decision is where CDC-to-target merging happens: in Snowflake Tasks
+    (low latency, SQL-native) or in dbt incremental models (dbt-managed, easier testing).
+    Tasks are appropriate when sub-minute freshness is needed; dbt incremental models are
+    appropriate for minute-level freshness with full testability.
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_tasks
+    - dbt_incremental_models
+  notes: "No single right answer; good answer covers the trade-off between Tasks vs dbt."
+
+- id: a-005
+  tier: architectural
+  question: "How should you structure dbt environments (dev, staging, prod) in a Snowflake project to isolate team members and prevent accidental production writes?"
+  gold_answer: >
+    The standard pattern is to use separate Snowflake databases per environment controlled
+    by the dbt target profile: dev models write to DEV_<username>_<schema>, staging to
+    STAGING_<schema>, and production to PROD_<schema>. This is implemented via the
+    generate_schema_name macro (or the built-in environment variable approach in dbt Cloud).
+    Prevent production writes by: (1) using a dedicated Snowflake role (TRANSFORMER_PROD)
+    that only the CI/CD system has credentials for; (2) making developer roles (TRANSFORMER_DEV)
+    only have WRITE access to the DEV database. dbt Cloud environments enforce this
+    separation via environment-level credentials. The generate_schema_name macro is the
+    key lever for controlling schema naming per environment.
+  must_cite_doc_ids:
+    - dbt_environment_setup
+    - dbt_custom_schema
+  notes: "generate_schema_name macro is the crucial detail most answers miss."
+
+- id: a-006
+  tier: architectural
+  question: "What is the best strategy for optimising Snowflake warehouse costs for a data platform serving 10 teams with different workload patterns?"
+  gold_answer: >
+    Separate warehouses by workload type, not by team. Recommended pattern: (1) a medium
+    transformation warehouse for dbt runs (auto-suspend 60s, auto-resume); (2) a small/medium
+    BI warehouse for interactive dashboarding (auto-suspend 300s); (3) a large ad-hoc
+    warehouse for heavy analytical queries (auto-suspend 60s, manual resume or resource
+    monitor with credit quota); (4) a separate loading warehouse for EL pipelines. Use
+    resource monitors with NOTIFY and SUSPEND actions per warehouse to cap monthly spend.
+    Multi-cluster with auto-scaling is appropriate for the BI warehouse if concurrency
+    spikes are common. Avoid a single shared warehouse — it creates contention and obscures
+    cost attribution.
+  must_cite_doc_ids:
+    - sf_warehouse_management
+    - sf_resource_monitors
+    - sf_warehouses_multicluster
+  notes: "Resource monitors and workload separation are the high-signal details."
+
+- id: a-007
+  tier: architectural
+  question: "How would you implement a comprehensive testing strategy for a dbt project with 100+ models?"
+  gold_answer: >
+    A layered testing strategy: (1) Apply not_null and unique tests on all primary keys
+    at the staging layer — these catch data loading issues early. (2) Apply relationships
+    tests at the mart layer to enforce referential integrity between fact and dimension
+    models. (3) Add accepted_values tests for low-cardinality status/type columns.
+    (4) Write singular SQL tests for complex business rules (e.g. revenue > 0, date
+    not in future). (5) Use dbt-utils' expression_is_true for inline assertions.
+    (6) Set severity: warn for tests in dev to avoid blocking exploration; severity: error
+    in CI. (7) Use --store-failures to write failed rows to a schema for debugging.
+    At 100+ models, test coverage % is a key metric — use dbt's test coverage commands
+    or dbt-project-evaluator package to identify untested models.
+  must_cite_doc_ids:
+    - dbt_tests
+    - dbt_test_severity
+  notes: "store-failures and dbt-project-evaluator are high-signal details."
+
+- id: a-008
+  tier: architectural
+  question: "How do you handle large fact table incremental loads in dbt on Snowflake to minimise both cost and latency?"
+  gold_answer: >
+    For large fact tables: (1) Use incremental materialisation with strategy: merge and a
+    date/timestamp unique_key. (2) Add a where clause in the incremental filter block to
+    restrict to recent data (e.g. last 3 days with a 1-day lookback for late-arriving rows).
+    (3) Use the partition_by config (for BigQuery) or on Snowflake, cluster the target
+    table on the date column so micro-partition pruning minimises scan costs. (4) Avoid
+    full-refresh runs in production — gate them behind a manual flag. (5) For very high
+    volume, use delete+insert strategy with a date partition as the match key to replace
+    whole partitions atomically. (6) Monitor dbt run durations via Langfuse or dbt Cloud
+    job history and alert on regressions.
+  must_cite_doc_ids:
+    - dbt_incremental_models
+    - dbt_incremental_strategies
+    - sf_clustering_tables
+  notes: "Clustering on date + incremental filter lookback is Snowflake-specific advice."
+
+- id: a-009
+  tier: architectural
+  question: "How would you design the Snowflake security model for a multi-tenant SaaS data platform where each customer's data must be logically isolated?"
+  gold_answer: >
+    The standard Snowflake multi-tenant isolation pattern uses row-level access policies
+    (Row Access Policies) to filter data by customer_id based on the querying user's context
+    (via CURRENT_ROLE() or a mapping table). Each customer's data lives in the same physical
+    tables but access policy evaluations prevent cross-customer visibility. For stronger
+    isolation, use separate schemas or databases per customer with dedicated roles — this
+    is simpler to audit but harder to scale. For SaaS at scale, the row access policy
+    approach is more operationally efficient. Complement with column masking policies for
+    PII fields and network policies for IP allowlisting.
+  must_cite_doc_ids:
+    - sf_row_access_policies
+    - sf_security_access_control
+  notes: "Row Access Policies are the Snowflake-native isolation primitive; often unknown."
+
+- id: a-010
+  tier: architectural
+  question: "How should a data team organise dbt sources when they have 5 operational databases feeding a Snowflake data warehouse?"
+  gold_answer: >
+    Create one sources.yml file per source database under models/staging/<source_name>/.
+    Each file declares the database, schema, and tables for that source. Name sources
+    consistently with the operational system name (e.g. name: salesforce, name: postgres_orders).
+    Configure freshness checks (loaded_at_field, warn_after, error_after) on high-priority
+    sources to detect pipeline failures early. Use source() references in staging models
+    and never reference raw tables directly in intermediate or mart models. If a source
+    database has multiple schemas, use a separate source block per schema within the same
+    sources.yml. This makes dbt lineage accurate and enables dbt source freshness alerting
+    per source system.
+  must_cite_doc_ids:
+    - dbt_sources
+    - dbt_source_freshness
+  notes: "Per-source sources.yml organisation and freshness config is the key advice."
+
+# ── Adversarial (10) ──────────────────────────────────────────────────────────
 
 - id: adv-001
   tier: adversarial
   question: "Does Snowflake support full ACID transactions across multi-statement sessions?"
   gold_answer: >
-    Snowflake supports ACID transactions within a session: BEGIN / COMMIT / ROLLBACK
-    work correctly and multi-statement transactions are atomic and isolated. However,
-    Snowflake uses snapshot isolation (not serializable isolation by default), so
-    two concurrent transactions reading the same rows can both proceed without blocking
-    — a write in transaction B is not visible to transaction A until B commits.
-    The correct answer is: yes, Snowflake is ACID-compliant, but the isolation level
-    is snapshot isolation, not strict serializability, which matters for certain
-    anomaly-sensitive workloads.
+    Snowflake is ACID-compliant: BEGIN, COMMIT, and ROLLBACK work correctly, and
+    multi-statement transactions within a session are atomic and isolated. However, the
+    isolation level is READ COMMITTED by default — not serializable. This means a
+    transaction can read rows committed by another transaction mid-execution (non-repeatable
+    reads are possible). Snowflake does not support SELECT FOR UPDATE or pessimistic locking.
+    The correct answer is: yes, Snowflake supports ACID transactions, but the isolation
+    model is READ COMMITTED (closer to snapshot isolation in practice due to micro-partition
+    immutability), not strict serializability. Workloads that assume serializable isolation
+    may observe anomalies.
   must_cite_doc_ids:
     - sf_transactions
     - sf_isolation_levels
-  notes: >
-    Trap: a naive 'yes ACID' answer misses the isolation-level nuance.
-    A naive 'no not ACID' answer is simply wrong. The system must return a nuanced answer.
+  notes: "Trap: naive 'yes ACID' misses isolation level nuance. Naive 'no' is wrong."
+
+- id: adv-002
+  tier: adversarial
+  question: "Do Snowflake Streams consume compute credits?"
+  gold_answer: >
+    No, creating and maintaining a Snowflake Stream itself does not consume compute credits.
+    Streams are metadata objects — they track change offsets at the storage layer without
+    running warehouse compute. However, CONSUMING a stream (i.e. querying it or using it
+    in a Task's SELECT) does require a running virtual warehouse and therefore consumes
+    credits. The common misconception is that streams are always 'free' — they are free
+    to maintain, but the workloads that read them are not.
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_tasks
+  notes: "Trap: streams are free to create/maintain, but queries against them are not."
+
+- id: adv-003
+  tier: adversarial
+  question: "Is dbt an orchestration tool?"
+  gold_answer: >
+    dbt is primarily a transformation tool, not an orchestration tool. It executes SQL
+    transformations against a data warehouse and manages the DAG of model dependencies
+    within a single dbt run, but it does not schedule runs, manage cross-system dependencies,
+    retry failed external API calls, or coordinate between different data systems. For
+    orchestration (scheduling, dependency management across pipelines, alerting) you need
+    an external tool such as Airflow, Dagster, Prefect, or dbt Cloud's built-in scheduler.
+    dbt does have limited orchestration features in dbt Cloud (job scheduling, triggers),
+    but calling dbt itself an orchestration tool overstates its capabilities and is
+    technically incorrect.
+  must_cite_doc_ids:
+    - dbt_introduction
+  notes: "dbt Cloud scheduler blurs the line; answer must be precise about core dbt vs dbt Cloud."
+
+- id: adv-004
+  tier: adversarial
+  question: "Does Snowflake automatically recluster a table when you define a clustering key on it?"
+  gold_answer: >
+    Defining a CLUSTER BY key on a table does not immediately recluster it. Snowflake
+    initially clusters data only as new micro-partitions are written. For existing data,
+    automatic background reclustering (Automatic Clustering) must be enabled explicitly —
+    it is not on by default when you define a clustering key. Automatic Clustering incurs
+    credit consumption (computed using Serverless credits, not a warehouse). Additionally,
+    the clustering depth metric SYSTEM$CLUSTERING_INFORMATION() should be checked before
+    enabling Automatic Clustering to verify the table actually benefits from it.
+  must_cite_doc_ids:
+    - sf_clustering_tables
+    - sf_automatic_clustering
+  notes: "Trap: defining CLUSTER BY ≠ enabling Automatic Clustering. Common misconception."
+
+- id: adv-005
+  tier: adversarial
+  question: "Does dbt run tests in parallel?"
+  gold_answer: >
+    Yes, dbt runs tests in parallel up to the configured --threads value (default 1 in
+    profiles.yml if not specified, though most teams set 4–8). Each test is treated as an
+    independent node in the DAG and can run concurrently with other tests. However, tests
+    that depend on the same model (e.g. unique and not_null on the same column) may still
+    run concurrently — dbt does not serialise tests per model. The --threads flag controls
+    both model execution and test execution parallelism. The common misconception is that
+    dbt test is always sequential.
+  must_cite_doc_ids:
+    - dbt_run_command
+    - dbt_tests
+  notes: "Answer requires knowing --threads applies to both run and test; default confusion."
+
+- id: adv-006
+  tier: adversarial
+  question: "Can you recover a accidentally dropped Snowflake table using Time Travel?"
+  gold_answer: >
+    Yes, if Time Travel is enabled and the retention period has not expired. Use
+    UNDROP TABLE <table_name> to restore a dropped table within the Time Travel window.
+    For permanent tables the default retention is 1 day (configurable up to 90 days on
+    Enterprise+). Transient and temporary tables cannot be recovered with UNDROP because
+    their Time Travel retention is at most 1 day and is often 0. If the Time Travel period
+    has expired, recovery requires contacting Snowflake Support to attempt Fail-Safe recovery
+    (only possible for permanent tables within 7 days of Time Travel expiry). The nuance:
+    UNDROP works for tables but also for schemas (UNDROP SCHEMA) and databases (UNDROP DATABASE).
+  must_cite_doc_ids:
+    - sf_time_travel
+    - sf_data_failsafe
+  notes: "Trap: answer must qualify transient/temp table limitation and Fail-Safe availability."
+
+- id: adv-007
+  tier: adversarial
+  question: "Does Snowflake support JOIN operations between tables in different Snowflake accounts?"
+  gold_answer: >
+    Not via direct SQL cross-account JOINs — there is no SQL syntax to reference a table
+    in another Snowflake account directly. However, there are two supported patterns: (1)
+    Snowflake Secure Data Sharing allows a provider account to share database objects
+    (tables, views) with a consumer account, after which the consumer can JOIN shared
+    objects with their own tables as if they were local. (2) Snowflake Data Marketplace
+    enables the same pattern at scale. The data is not copied — it is accessed in place
+    via Secure Data Sharing. So cross-account JOINs are possible but require setting up
+    a share first, not through ad-hoc SQL.
+  must_cite_doc_ids:
+    - sf_data_sharing
+  notes: "Trap: 'no cross-account SQL' is correct but incomplete — sharing enables effective cross-account JOINs."
+
+- id: adv-008
+  tier: adversarial
+  question: "Does running 'dbt run --full-refresh' on an incremental model delete historical data?"
+  gold_answer: >
+    Yes — dbt run --full-refresh on an incremental model drops and recreates the target
+    table from scratch, using the model's full SELECT statement without the incremental
+    filter. All historical rows in the target table are lost. This is intentional for use
+    cases like schema changes (adding a column) or correcting bad historical data. The
+    --full-refresh flag propagates to all downstream incremental models in the DAG only if
+    --full-refresh is passed without --select. When scoped to a single model with --select,
+    only that model is refreshed. This is a common source of accidental data loss in
+    production.
+  must_cite_doc_ids:
+    - dbt_incremental_models
+    - dbt_run_command
+  notes: "Trap: --full-refresh deletes history; propagation behaviour is nuanced."
+
+- id: adv-009
+  tier: adversarial
+  question: "Does Snowflake guarantee exactly-once delivery when consuming a Stream with a Task?"
+  gold_answer: >
+    No. Snowflake Tasks guarantee at-least-once execution — if a Task fails mid-execution
+    after partially consuming a Stream, the Stream offset may not be advanced, and the Task
+    will retry and re-process the same change records. The implication is that the SQL logic
+    consuming the Stream must be idempotent: re-applying the same change records should
+    produce the same result (e.g. using MERGE rather than INSERT). Exactly-once semantics
+    must be implemented at the application layer, not assumed from the infrastructure.
+  must_cite_doc_ids:
+    - sf_streams_intro
+    - sf_tasks
+  notes: "At-least-once vs exactly-once is a classic distributed systems trap question."
+
+- id: adv-010
+  tier: adversarial
+  question: "Is a dbt model's 'unique' test sufficient to guarantee there are no duplicate rows in a production table?"
+  gold_answer: >
+    No, for two reasons: (1) dbt tests run on a schedule (or on each dbt run), not
+    continuously — duplicates can be introduced between test runs without detection. (2) dbt
+    tests by default fail without blocking the pipeline; a failing unique test produces
+    an error in the logs but does not roll back or prevent the model from being built. To
+    make the unique test a hard gate, you need: (a) severity: error in config and (b) the
+    CI/CD pipeline to gate deployments on test results. Additionally, the unique test only
+    checks the columns you specify — if uniqueness must hold across a composite key, you
+    need dbt-utils' unique_combination_of_columns test. A unique test passing does not mean
+    the table is currently duplicate-free; it means it was duplicate-free at the last test run.
+  must_cite_doc_ids:
+    - dbt_tests
+    - dbt_test_severity
+  notes: "Schedule-based testing gap + severity semantics are both important nuances."

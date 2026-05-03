@@ -1,4 +1,4 @@
-.PHONY: up down crawl crawl-snowflake crawl-dbt crawl-discourse index eval ablation eval-smoke ui test lint fmt help
+.PHONY: up down crawl crawl-snowflake crawl-dbt crawl-discourse index eval ablation eval-smoke debug ui test lint fmt help
 
 PYTHON := python
 UV := uv
@@ -41,6 +41,9 @@ eval:
 
 ablation:
 	$(UV) run python -m erag.eval.ablation
+
+debug:
+	$(UV) run python -m erag.retrieve.debug $(ARGS)
 
 # ── CI smoke (used by GitHub Actions) ────────────────────────────────────────
 

@@ -1,64 +1,92 @@
 """Unit tests for Reciprocal Rank Fusion (retrieve/hybrid.py).
 
-These are the most important tests in the repo — RRF correctness is fundamental
-to the hybrid retrieval claim.
+The RRF merge is the most critical piece of the hybrid retrieval claim —
+these tests verify correctness before any integration test is possible.
 """
-
-import pytest
 
 from erag.retrieve.hybrid import RankedResult, reciprocal_rank_fusion
 
 
-def _make(doc_id: str, chunk_id: str = "0", score: float = 1.0) -> RankedResult:
+def _r(chunk_id: str, doc_id: str = "doc", score: float = 1.0) -> RankedResult:
     return RankedResult(doc_id=doc_id, chunk_id=chunk_id, score=score)
 
 
-# TODO Phase 2: replace NotImplementedError stubs with real assertions once implemented
-
-
 def test_identical_rankings_preserve_order():
-    """If both lists rank docs identically the merged order should match."""
-    list_a = [_make("d1"), _make("d2"), _make("d3")]
-    list_b = [_make("d1"), _make("d2"), _make("d3")]
-    with pytest.raises(NotImplementedError):
-        result = reciprocal_rank_fusion(list_a, list_b)
-        assert [r.doc_id for r in result] == ["d1", "d2", "d3"]
+    """Both lists rank identically → merged order matches."""
+    list_a = [_r("c1"), _r("c2"), _r("c3")]
+    list_b = [_r("c1"), _r("c2"), _r("c3")]
+    result = reciprocal_rank_fusion(list_a, list_b)
+    assert [r.chunk_id for r in result] == ["c1", "c2", "c3"]
 
 
-def test_disjoint_rankings_interleave():
-    """Disjoint lists should interleave: first of each list should score higher than second."""
-    list_a = [_make("a1"), _make("a2")]
-    list_b = [_make("b1"), _make("b2")]
-    with pytest.raises(NotImplementedError):
-        result = reciprocal_rank_fusion(list_a, list_b)
-        assert len(result) == 4
+def test_disjoint_rankings_all_present():
+    """Disjoint lists → all items appear in the merged output."""
+    list_a = [_r("a1"), _r("a2")]
+    list_b = [_r("b1"), _r("b2")]
+    result = reciprocal_rank_fusion(list_a, list_b)
+    ids = {r.chunk_id for r in result}
+    assert ids == {"a1", "a2", "b1", "b2"}
 
 
-def test_doc_in_only_one_list_still_included():
-    """A doc appearing in only one list should still appear in the merged output."""
-    list_a = [_make("shared"), _make("only_a")]
-    list_b = [_make("shared"), _make("only_b")]
-    with pytest.raises(NotImplementedError):
-        result = reciprocal_rank_fusion(list_a, list_b)
-        doc_ids = [r.doc_id for r in result]
-        assert "only_a" in doc_ids
-        assert "only_b" in doc_ids
+def test_top_ranked_in_both_lists_scores_highest():
+    """A doc ranked #1 in both lists should have a higher RRF score than one ranked #1 in only one."""
+    shared_top = [_r("shared"), _r("other_a")]
+    other_list = [_r("shared"), _r("other_b")]
+    single_list = [_r("only_once"), _r("shared")]
+
+    result = reciprocal_rank_fusion(shared_top, other_list)
+    top_id = result[0].chunk_id
+    assert top_id == "shared", f"expected 'shared' at rank 1, got '{top_id}'"
 
 
-def test_rrf_k_is_configurable():
-    """k=1 should amplify rank differences more than k=60."""
-    list_a = [_make("d1"), _make("d2")]
-    list_b = [_make("d2"), _make("d1")]
-    with pytest.raises(NotImplementedError):
-        result_low_k = reciprocal_rank_fusion(list_a, list_b, k=1)
-        result_high_k = reciprocal_rank_fusion(list_a, list_b, k=60)
-        # Both should return same ordering but scores differ; just check lengths
-        assert len(result_low_k) == len(result_high_k)
+def test_rrf_scores_are_positive():
+    """All RRF scores must be strictly positive."""
+    list_a = [_r("c1"), _r("c2")]
+    list_b = [_r("c3"), _r("c1")]
+    for r in reciprocal_rank_fusion(list_a, list_b):
+        assert r.score > 0.0
 
 
-def test_empty_list_input_handled():
-    """An empty list input should not crash; treat as a list contributing no scores."""
-    list_a = [_make("d1"), _make("d2")]
-    with pytest.raises(NotImplementedError):
-        result = reciprocal_rank_fusion(list_a, [])
-        assert len(result) == 2
+def test_rrf_k_parameter_affects_scores():
+    """k=1 amplifies rank differences more than k=60 — top score should be larger."""
+    list_a = [_r("c1"), _r("c2")]
+    list_b = [_r("c1"), _r("c2")]
+
+    result_k1 = reciprocal_rank_fusion(list_a, list_b, k=1)
+    result_k60 = reciprocal_rank_fusion(list_a, list_b, k=60)
+
+    # Both produce same order; top score should differ
+    assert result_k1[0].chunk_id == result_k60[0].chunk_id
+    assert result_k1[0].score > result_k60[0].score
+
+
+def test_empty_list_input_is_safe():
+    """An empty list as one input should not crash and other items still ranked."""
+    list_a = [_r("c1"), _r("c2")]
+    result = reciprocal_rank_fusion(list_a, [])
+    assert len(result) == 2
+    assert result[0].chunk_id == "c1"
+
+
+def test_single_list_rank_order_preserved():
+    """With a single list, RRF output order should match input order."""
+    list_a = [_r("c1"), _r("c2"), _r("c3")]
+    result = reciprocal_rank_fusion(list_a)
+    assert [r.chunk_id for r in result] == ["c1", "c2", "c3"]
+
+
+def test_three_lists_merged():
+    """Three lists: doc ranked high in all three should win."""
+    l1 = [_r("winner"), _r("x")]
+    l2 = [_r("winner"), _r("y")]
+    l3 = [_r("winner"), _r("z")]
+    result = reciprocal_rank_fusion(l1, l2, l3)
+    assert result[0].chunk_id == "winner"
+
+
+def test_metadata_preserved_from_first_occurrence():
+    """Metadata from the first list in which a chunk appears should be preserved."""
+    r = RankedResult(doc_id="doc1", chunk_id="c1", score=1.0, metadata={"title": "first"})
+    r2 = RankedResult(doc_id="doc1", chunk_id="c1", score=0.5, metadata={"title": "second"})
+    result = reciprocal_rank_fusion([r], [r2])
+    assert result[0].metadata["title"] == "first"

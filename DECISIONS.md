@@ -145,3 +145,21 @@ answers that actually worked. Including Discourse is the single clearest differe
 tutorial RAG projects that index only the vendor docs.
 **What I'd reconsider (1 sentence):** Stack Overflow would add signal too, but scraping SO
 at scale risks ToS issues; Discourse's public API is clean and explicitly allows crawling.
+
+---
+
+## Decision: BM25 — rank_bm25 in-memory index over Qdrant sparse vectors
+
+**Date:** 2026-05-03
+**Options considered:** Qdrant native sparse vectors (SPLADE / BM42), rank_bm25 serialised to disk
+**Choice:** rank_bm25 serialised to disk (data/processed/bm25_<collection>.pkl)
+**Why (3 sentences):** Qdrant sparse vectors require a learned sparse encoder (SPLADE or BM42)
+which adds a large model dependency and index-time inference cost that isn't justified for a
+~5,000-document corpus. rank_bm25.BM25Okapi is a dependency-light, fully deterministic
+implementation of Okapi BM25 that can be built in seconds and serialised to a single pickle
+file, making it trivially reproducible. The RRF merge in retrieve/hybrid.py is agnostic to
+how the two ranked lists are produced, so switching to Qdrant sparse vectors later is a
+one-file change.
+**What I'd reconsider (1 sentence):** At 500k+ documents the in-memory BM25 index would
+become impractical; at that scale, Qdrant sparse vectors or a dedicated BM25 service (e.g.,
+Elasticsearch) would be necessary.

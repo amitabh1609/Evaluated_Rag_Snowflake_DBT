@@ -68,9 +68,11 @@ jobs:
           import json, sys
 
           with open("/tmp/smoke_results.json") as f:
-              results = json.load(f)
+              payload = json.load(f)
 
-          faithfulness = results.get("faithfulness", 0.0)
+          # ragas_runner writes {"results": {..., "faithfulness": ...}, ...}
+          r = payload.get("results", payload)
+          faithfulness = r.get("faithfulness", r.get("global", {}).get("faithfulness", 0.0))
           threshold = 0.80
 
           print(f"Faithfulness score: {faithfulness:.4f}")
@@ -89,7 +91,8 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('/tmp/smoke_results.json', 'utf8'));
+            const payload = JSON.parse(fs.readFileSync('/tmp/smoke_results.json', 'utf8'));
+            const results = payload.results ?? payload;
             const f = results.faithfulness?.toFixed(4) ?? 'N/A';
             const ar = results.answer_relevancy?.toFixed(4) ?? 'N/A';
             const cp = results.context_precision?.toFixed(4) ?? 'N/A';

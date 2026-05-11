@@ -1,6 +1,8 @@
 # Evaluated RAG System for Snowflake & dbt Documentation
 
 ![Eval Gate](https://github.com/amitabh1609/Evaluated_Rag_Snowflake_DBT/actions/workflows/eval.yml/badge.svg)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-evaluated--rag--snowflake--dbt.onrender.com-blue)](https://evaluated-rag-snowflake-dbt.onrender.com)
+**🚀 Live Demo:** [https://evaluated-rag-snowflake-dbt.onrender.com](https://evaluated-rag-snowflake-dbt.onrender.com)
 
 > **Headline metric (Config C — primary):**
 > Faithfulness **≥ 0.80** on a 50-question, 4-tier hand-curated benchmark.

@@ -13,7 +13,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --python 3.11
 
 COPY src/ ./src/
-COPY data/processed/ ./data/processed/
 COPY .streamlit/ ./.streamlit/
 
 EXPOSE 8501

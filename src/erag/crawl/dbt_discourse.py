@@ -1,3 +1,4 @@
+
 """Crawl top-200 dbt Discourse threads by likes (last 3 years).
 
 Uses the public Discourse JSON API — no authentication required.
@@ -166,7 +167,12 @@ def _topic_to_markdown(topic_data: dict, topic_meta: dict) -> tuple[str, str]:
     slug = topic_data.get("slug", str(topic_data.get("id", "")))
     topic_id = topic_data.get("id", "")
     url = f"{BASE_URL}/t/{slug}/{topic_id}"
-    tags = ", ".join(topic_data.get("tags", []))
+    raw_tags = topic_data.get("tags", [])
+
+    tags = ", ".join(
+      tag.get("name", str(tag)) if isinstance(tag, dict) else str(tag)
+      for tag in raw_tags
+    )
 
     posts = topic_data.get("post_stream", {}).get("posts", [])
 
